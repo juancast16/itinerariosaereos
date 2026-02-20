@@ -1,14 +1,21 @@
 // src/app/api/pdf/route.ts
 
 import { NextResponse } from 'next/server'
-import puppeteer from 'puppeteer'
+
+import chromium from '@sparticuz/chromium'
+import puppeteer from 'puppeteer-core'
+
+const browser = await puppeteer.launch({
+  args: chromium.args,
+  executablePath: await chromium.executablePath(),
+  headless: true
+})
 import { Itinerary } from '@/lib/types'
 import { renderPdfTemplate } from '@/app/voucher/pdf/template'
 
 export async function POST(req: Request) {
   const itinerary: Itinerary = await req.json()
 
-  const browser = await puppeteer.launch()
   const page = await browser.newPage()
 
 
