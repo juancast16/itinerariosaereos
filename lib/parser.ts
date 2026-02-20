@@ -218,13 +218,15 @@ if (bookingCodes.length > 0 && flights.length > 0) {
 }
 
   return {
-    passenger: { fullName: passengerName },
-    bookingCodes,
-    flights,
-    baggage: {
-      personalItem: true,
-      cabin10kg: true,
-      checked23kg: !/sin equipaje facturado/i.test(text)
-    }
+  passengers: [
+    { fullName: passengerName }
+  ],
+  bookingCodes,
+  flights,
+  baggage: {
+    personalItem: true,
+    cabin10kg: true,
+    checked23kg: !/sin equipaje facturado/i.test(text)
   }
+}
 }
