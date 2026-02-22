@@ -1,5 +1,8 @@
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+import { NextResponse } from 'next/server'
+import { renderPdfTemplate } from '@/app/voucher/pdf/template'
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 
@@ -26,7 +29,7 @@ export async function POST(req: Request) {
 
   await browser.close()
 
-  return new NextResponse(pdfBuffer, {
+  return new NextResponse(Buffer.from(pdfBuffer), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="itinerario.pdf"'

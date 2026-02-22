@@ -1,15 +1,17 @@
 // src/app/api/itinerary/route.ts
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { renderPdfTemplate } from '@/app/voucher/pdf/template'
 import { Itinerary } from '@/lib/types'
 
-// estas funciones ya las tienes o las moveremos luego
 import { runOCR } from '@/lib/ocr'
 import { parseItinerary } from '@/lib/parser'
-import { generatePdf } from '@/lib/pdf'
+
+import chromium from '@sparticuz/chromium'
+import puppeteer from 'puppeteer-core'
 
 export async function POST(req: Request) {
   try {
@@ -33,12 +35,27 @@ export async function POST(req: Request) {
     // 2️⃣ PARSER
     const itinerary: Itinerary = parseItinerary(ocrTexts)
 
-    // 3️⃣ PDF
+    // 3️⃣ TEMPLATE
     const html = renderPdfTemplate(itinerary)
-    const pdfBuffer = await generatePdf(html)
-    const pdfUint8 = new Uint8Array(pdfBuffer)
 
-    return new NextResponse(pdfUint8, {
+    // 4️⃣ PUPPETEER
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    })
+
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+    })
+
+    await browser.close()
+
+    return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="itinerario.pdf"',
