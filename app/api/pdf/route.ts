@@ -1,13 +1,10 @@
 // src/app/api/pdf/route.ts
 
 import { NextResponse } from 'next/server'
-
-import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 
 const browser = await puppeteer.launch({
-  args: chromium.args,
-  executablePath: await chromium.executablePath(),
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
   headless: true
 })
 import { Itinerary } from '@/lib/types'
