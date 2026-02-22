@@ -1,22 +1,21 @@
-// src/app/api/pdf/route.ts
+export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
-import puppeteer from 'puppeteer'
-
-const browser = await puppeteer.launch({
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  headless: true
-})
-import { Itinerary } from '@/lib/types'
-import { renderPdfTemplate } from '@/app/voucher/pdf/template'
+import chromium from '@sparticuz/chromium'
+import puppeteer from 'puppeteer-core'
 
 export async function POST(req: Request) {
-  const itinerary: Itinerary = await req.json()
+
+  const itinerary = await req.json()
+
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: true
+  })
 
   const page = await browser.newPage()
 
-
-const html = renderPdfTemplate(itinerary)
+  const html = renderPdfTemplate(itinerary)
 
   await page.setContent(html, { waitUntil: 'networkidle0' })
 
@@ -27,7 +26,7 @@ const html = renderPdfTemplate(itinerary)
 
   await browser.close()
 
-  return new NextResponse(pdfBuffer as any, {
+  return new NextResponse(pdfBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="itinerario.pdf"'
