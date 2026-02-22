@@ -1,7 +1,7 @@
 // src/app/api/pdf/route.ts
 
 import { NextResponse } from 'next/server'
-import puppeteer from 'puppeteer-core'
+import puppeteer from 'puppeteer'
 
 const browser = await puppeteer.launch({
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
