@@ -10,7 +10,8 @@ const AIRLINES = [
   'Copa Airlines',
   'Wingo',
   'Jetsmart',
-  'Wizz'
+  'Wizz',
+  'Word2fly'
 ]
 
 
