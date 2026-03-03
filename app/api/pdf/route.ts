@@ -3,12 +3,18 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { renderPdfTemplate } from '@/app/voucher/pdf/template'
+import { Itinerary } from '@/lib/types'
+import { enrichFlightsWithArrivalDay } from '@/lib/flight-arrival'
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 
 export async function POST(req: Request) {
 
-  const itinerary = await req.json()
+  const itinerary: Itinerary = await req.json()
+  const normalizedItinerary: Itinerary = {
+    ...itinerary,
+    flights: enrichFlightsWithArrivalDay(itinerary.flights || [])
+  }
 
   const browser = await puppeteer.launch({
   args: [
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
 
   const page = await browser.newPage()
 
-  const html = renderPdfTemplate(itinerary)
+  const html = renderPdfTemplate(normalizedItinerary)
 
   await page.setContent(html, { waitUntil: 'networkidle0' })
 

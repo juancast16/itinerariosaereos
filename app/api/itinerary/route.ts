@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { renderPdfTemplate } from '@/app/voucher/pdf/template'
 import { Itinerary } from '@/lib/types'
+import { enrichFlightsWithArrivalDay } from '@/lib/flight-arrival'
 
 import { runOCR } from '@/lib/ocr'
 import { parseItinerary } from '@/lib/parser'
@@ -34,9 +35,13 @@ export async function POST(req: Request) {
 
     // 2️⃣ PARSER
     const itinerary: Itinerary = parseItinerary(ocrTexts)
+    const normalizedItinerary: Itinerary = {
+      ...itinerary,
+      flights: enrichFlightsWithArrivalDay(itinerary.flights || [])
+    }
 
-    // 3️⃣ TEMPLATE
-    const html = renderPdfTemplate(itinerary)
+    // 3) TEMPLATE
+    const html = renderPdfTemplate(normalizedItinerary)
 
     // 4️⃣ PUPPETEER
     const browser = await puppeteer.launch({
