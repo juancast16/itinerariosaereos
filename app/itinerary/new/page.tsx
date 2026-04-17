@@ -6,7 +6,7 @@ const AIRLINES = [
   'Avianca',
   'Iberia',
   'LATAM',
-  'Air_Europa',
+  'Air Europa',
   'Copa Airlines',
   'Wingo',
   'Jetsmart',
@@ -188,6 +188,10 @@ function removePassenger(index: number) {
       />
 
       <h2 className="text-xl font-bold mt-6">Segmentos</h2>
+      <p className="text-sm text-gray-600">
+        Para vuelos con escala: agrega cada tramo como un segmento nuevo y conserva el mismo PNR.
+        Para tramos separados (otro tiquete): usa un PNR distinto.
+      </p>
 
       {flights.map((flight, index) => (
         <div key={index} className="border p-4 rounded space-y-4">
@@ -230,24 +234,24 @@ function removePassenger(index: number) {
     </div>
 
     <div>
-      <label className="text-sm font-medium">Origen (IATA)</label>
+      <label className="text-sm font-medium">Ciudad de origen</label>
       <input
         className="w-full border p-2 rounded"
         onChange={e => {
           const updated = [...flights]
-          updated[index].origin = e.target.value.toUpperCase()
+          updated[index].origin = e.target.value
           setFlights(updated)
         }}
       />
     </div>
 
     <div>
-      <label className="text-sm font-medium">Destino (IATA)</label>
+      <label className="text-sm font-medium">Ciudad de destino</label>
       <input
         className="w-full border p-2 rounded"
         onChange={e => {
           const updated = [...flights]
-          updated[index].destination = e.target.value.toUpperCase()
+          updated[index].destination = e.target.value
           setFlights(updated)
         }}
       />

@@ -1,158 +1,407 @@
-/* =====================
-   VARIABLES
-===================== */
 :root {
-  --brand: #41B5A4;
-  --brand-dark: #2e8f81;
+  --brand: #0ea5c6;
+  --brand-soft: #dff4f8;
+  --ink: #233b67;
+  --muted: #5f6f89;
 }
 
-/* =====================
-   CONFIGURACIÓN PDF
-===================== */
 @page {
-  margin: 20px 20px 80px 20px;
+  margin: 16px 16px 62px 16px;
 }
-
-
 
 body {
   margin: 0;
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
-  color: #1f2937;
+  color: var(--ink);
 }
 
-/* =====================
-   HEADER FIJO
-===================== */
 header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  padding: 20px 40px 0 40px;
+  padding: 14px 24px 0 24px;
   z-index: 10;
 }
 
-
-
-
-
-header img {
-  display: block;
-}
-
-/* =====================
-   CONTENIDO
-===================== */
 main {
-  margin-top: 200px;
-  margin-left: 40px;
-  margin-right: 40px;
-}
-
-
-
-
-h1 {
-  font-size: 20px;
-  margin-bottom: 20px;
-  color: #111827;
+  margin-top: 152px;
+  margin-left: 24px;
+  margin-right: 24px;
+  padding-bottom: 72px;
 }
 
 section {
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
 
 section h2 {
-  color: var(--brand-dark);
-  font-size: 15px;
+  color: var(--ink);
+  font-size: 16px;
   margin-bottom: 10px;
 }
 
-/* =====================
-   TABLA VUELOS
-===================== */
-table {
-  width: 100%;
-  border-collapse: collapse;
+.passenger-list {
+  border-top: 1px solid #d6dfec;
+}
+
+.passenger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid #d6dfec;
+}
+
+.passenger-label {
+  min-width: 86px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2b466f;
+}
+
+.passenger-name {
   font-size: 13px;
+  font-weight: 700;
+  color: #233b67;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-th {
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.header-left {
+  position: relative;
+  top: -8px;
+  margin: 0;
+  padding: 0;
   text-align: left;
-  background: #f9fafb;
-  padding: 8px;
-  border-bottom: 1px solid #e5e7eb;
 }
 
-td {
-  padding: 8px;
-  border-bottom: 1px solid #f1f5f9;
+.header-left img {
+  display: block;
+  height: 90px;
+  margin: 0;
 }
 
-/* =====================
-   EQUIPAJE
-===================== */
+.company-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.company-legal,
+.company-note {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.header-right {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.reservation-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reservation-code {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.1;
+  margin: 3px 0;
+  overflow-wrap: anywhere;
+}
+
+.trip-block {
+  border-top: 1px dashed #b9c7dd;
+  padding-top: 8px;
+  margin-bottom: 8px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.trip-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.trip-badge {
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+
+.trip-route {
+  background: var(--brand-soft);
+  color: #056e89;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.trip-meta {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.segments-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.segment-card {
+  border: 1px solid #d5e0ef;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.segment-head {
+  border-bottom: 1px solid #ecf1f9;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.segment-route {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0b8fb2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.segment-flight-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.segment-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 24px;
+  background: #f8fbff;
+  border: 1px solid #e4eef8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segment-logo img {
+  max-width: 62px;
+  max-height: 18px;
+  object-fit: contain;
+  transform-origin: center center;
+}
+
+.segment-airline-text {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.segment-flight-number {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.segment-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.airport-col {
+  width: 44%;
+}
+
+.airport-col-right {
+  text-align: right;
+}
+
+.airport-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.airport-code {
+  font-size: 18px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.airport-time {
+  margin-top: 1px;
+  color: #00a8cf;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.plane-col {
+  width: 12%;
+  text-align: center;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.segment-foot {
+  margin-top: 4px;
+  border-top: 1px solid #ecf1f9;
+  padding-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.connection-card {
+  width: 78px;
+  flex: 0 0 78px;
+  border: 1px dashed #6eaac8;
+  border-radius: 8px;
+  background: #f2fbff;
+  text-align: center;
+  padding: 6px 5px;
+  box-sizing: border-box;
+  align-self: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.connection-title {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.connection-airport {
+  color: #0a95b9;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.connection-time {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.2;
+}
+
 .equipaje-grid {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  flex-wrap: wrap; /*ajusta el contenido */
+  flex-wrap: wrap;
 }
 
+.equipaje {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.equipaje.force-page-break {
+  page-break-before: always;
+  break-before: page;
+  margin-top: 180px;
+}
 
 .equipaje-linea {
-  flex: 1 1 30%; /*evita que se desborde */
+  flex: 1 1 30%;
   min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
 }
 
 .equipaje-linea img {
   width: 200px;
   height: auto;
+  display: block;
 }
 
 .equipaje-linea span {
+  display: block;
+  margin-top: 6px;
   font-size: 11px;
   line-height: 1.3;
+  max-width: 190px;
 }
 
-/* =====================
-   OBSERVACIONES
-===================== */
 .observaciones {
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.28;
   margin-top: 0;
-
-
 }
 
 .observaciones li {
   margin-bottom: 6px;
 }
 
-/* =====================
-   SALTO DE PÁGINA
-===================== */
 .page-break {
   page-break-before: always;
   break-before: page;
-  margin-top: 190px; /* mismo espacio que el main */
+  margin-top: 0;
 }
 
+.page-break + .observaciones {
+  margin-top: 165px;
+}
 
-/* =====================
-   FOOTER FIJO
-===================== */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 0 40px 20px 40px;
+  padding: 0 24px 12px 24px;
 }
-
 
 .footer-grid {
   display: table;
@@ -176,122 +425,4 @@ td {
 .footer-item img {
   width: 20px;
   height: 20px;
-}
-
-header > div {
-  margin-top: 15px;
-}
-
-header > div > div:first-child {
-  margin-top: 0;
-}
-
-/* ===== HEADER INTERNO CORRECTO ===== */
-.header-inner {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.header-left {
-  display: block;
-  margin-top: 0;
-}
-
-.header-left img {
-  display: block;
-  height: 100px;
-  margin: 0;
-}
-
-.company-name {
-  font-size: 13px;
-  font-weight: bold;
-  margin-top: 4px;
-}
-
-.company-legal {
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.company-note {
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.header-right {
-  text-align: right;
-  position: relative;
-  top: 20px;   /* 👈 AQUÍ SE BAJA */
-}
-
-
-main h1 {
-  margin-top: 0;
-}
-
-/* Ajuste fino header izquierdo */
-.header-left {
-  position: relative;
-  top: -20px;
-}
-
-/* Alinear header izquierdo al borde */
-.header-left {
-  position: relative;
-  top: -12px;        /* el ajuste vertical que ya hicimos */
-  margin-left: 0;
-  padding-left: 0;
-  text-align: left;
-}
-
-.header-inner {
-  width: 100%;
-}
-
-/* ===== RESERVA (HEADER DERECHO) ===== */
-.header-right {
-  text-align: right;
-  margin-top: 4px;
-}
-
-.reservation-label {
-  font-size: 11px;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.reservation-code {
-  font-size: 22px;      /* AQUÍ está el tamaño protagonista */
-  font-weight: 700;
-  color: #111827;
-  line-height: 1.1;
-  margin: 2px 0;
-}
-
-.reservation-date {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.airline-cell {
-  text-align: center;
-  vertical-align: middle;
-}
-
-.airline-logo-wrapper {
-  height: 40px;           /* Altura uniforme */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.airline-logo-wrapper img {
-  max-height: 30px;       /* Tamaño máximo uniforme */
-  max-width: 90px;        /* Evita logos exageradamente largos */
-  object-fit: contain;    /* Mantiene proporción */
 }

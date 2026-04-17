@@ -11,8 +11,7 @@ import { enrichFlightsWithArrivalDay } from '@/lib/flight-arrival'
 import { runOCR } from '@/lib/ocr'
 import { parseItinerary } from '@/lib/parser'
 
-import chromium from '@sparticuz/chromium'
-import puppeteer from 'puppeteer-core'
+import { launchPdfBrowser } from '@/lib/pdf-browser'
 
 export async function POST(req: Request) {
   try {
@@ -44,12 +43,7 @@ export async function POST(req: Request) {
     const html = renderPdfTemplate(normalizedItinerary)
 
     // 4️⃣ PUPPETEER
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    })
-
+    const browser = await launchPdfBrowser()
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'networkidle0' })
 
