@@ -31,7 +31,10 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error(err)
     return NextResponse.json(
-      { error: 'Error generando preview' },
+      {
+        error: 'Error generando preview',
+        detail: err instanceof Error ? err.message : 'Error desconocido de OCR',
+      },
       { status: 500 }
     )
   }

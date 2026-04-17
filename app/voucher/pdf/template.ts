@@ -68,14 +68,58 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     return city || 'Sin ciudad'
   }
 
+  function normalizeCityKey(value: string) {
+    return (value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim()
+  }
+
+  function parseDateFlexible(dateStr: string) {
+    const value = (dateStr || '').trim()
+    if (!value) return null
+
+    const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (iso) return { y: Number(iso[1]), m: Number(iso[2]), d: Number(iso[3]) }
+
+    const slash = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+    if (slash) return { y: Number(slash[3]), m: Number(slash[2]), d: Number(slash[1]) }
+
+    return null
+  }
+
+  function parseDateTimeFlexible(dateStr: string, timeStr: string) {
+    const date = parseDateFlexible(dateStr)
+    const time = (timeStr || '').trim().match(/^(\d{2}):(\d{2})$/)
+    if (!date || !time) return null
+
+    return new Date(date.y, date.m - 1, date.d, Number(time[1]), Number(time[2]), 0, 0)
+  }
+
   function calcLayoverMinutes(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
     const prevDate = prev.arrivalDate || prev.date
-    const prevDateTime = new Date(`${prevDate}T${prev.arrivalTime}:00`)
-    const nextDateTime = new Date(`${next.date}T${next.departureTime}:00`)
+    const prevDateTime = parseDateTimeFlexible(prevDate, prev.arrivalTime)
+    const nextDateTime = parseDateTimeFlexible(next.date, next.departureTime)
+    if (!prevDateTime || !nextDateTime) return null
     if (Number.isNaN(prevDateTime.getTime()) || Number.isNaN(nextDateTime.getTime())) return null
 
     const diff = Math.max(0, Math.round((nextDateTime.getTime() - prevDateTime.getTime()) / 60000))
     return diff
+  }
+
+  function isRealConnection(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
+    const sameAirport =
+      normalizeCityKey(prev.destination) !== '' &&
+      normalizeCityKey(prev.destination) === normalizeCityKey(next.origin)
+
+    if (!sameAirport) return false
+
+    const layover = calcLayoverMinutes(prev, next)
+    if (layover === null) return false
+
+    return layover >= 0 && layover <= 18 * 60
   }
 
   function formatTime12h(timeStr: string) {
@@ -115,7 +159,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
       const flight = sorted[i]
       const prev = current.segments[current.segments.length - 1]
       const samePnr = (flight.bookingCode || 'SIN-PNR') === current.pnr
-      const isConnection = prev.destination === flight.origin
+      const isConnection = isRealConnection(prev, flight)
 
       if (samePnr && isConnection) {
         current.segments.push(flight)
@@ -149,7 +193,8 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
           const logoScale = AIRLINE_LOGO_SCALE[flight.airline] || 1
           const isLast = index === trip.segments.length - 1
           const connection = !isLast ? trip.segments[index + 1] : null
-          const layover = connection ? calcLayoverMinutes(flight, connection) : null
+          const showConnection = connection ? isRealConnection(flight, connection) : false
+          const layover = showConnection && connection ? calcLayoverMinutes(flight, connection) : null
 
           return `
             <div class="segment-card">
@@ -187,7 +232,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
               </div>
             </div>
             ${
-              connection
+              showConnection
                 ? `
                   <div class="connection-card">
                     <div class="connection-title">Escala</div>
