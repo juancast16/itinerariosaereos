@@ -1,5 +1,12 @@
 // src/lib/parser.ts
 
+import { AIRLINE_BY_PREFIX, detectAirlineFromText } from '@/lib/airline-codes'
+import { cityFromIata, formatCityLabel, KNOWN_IATA } from '@/lib/city-keys'
+import { mergeFlightSegments } from '@/lib/merge-flights'
+import { isGdsTableFormat, parseGdsItineraryTable } from '@/lib/parse-gds-table'
+import { tryParseJetSmartItinerary } from '@/lib/parse-jetsmart-itinerary'
+import { tryParseLatamItinerary } from '@/lib/parse-latam-itinerary'
+import { tryParseWingoItinerary } from '@/lib/parse-wingo-itinerary'
 import { Itinerary, FlightSegment } from '@/lib/types'
 
 function normalize(str: string) {
@@ -35,25 +42,60 @@ const INVALID_CITY_WORDS = new Set([
   'tramo',
   'primer tramo',
   'segundo tramo',
+  'check',
+  'disponible',
+  'operado',
+  'parada',
+  'basic',
+  'habilitara',
+  'meses',
+  'dias',
+  'semana',
 ])
+
+const UI_NOISE_LINE =
+  /check[\s-]?in|no disponible|operado por|se habilitara|habilitara en|\bparada\b|\bbasic\b|meses y \d+ dia/i
 
 function isInvalidCityToken(value: string) {
   const n = normalize(value)
-  return !n || INVALID_CITY_WORDS.has(n)
+  if (!n || INVALID_CITY_WORDS.has(n)) return true
+  if (n.length < 3) return true
+  if (/^(check|in|no|por|se|en|el|la|los|las|del|de|a)$/i.test(n)) return true
+  return ['disponible', 'habilitara', 'operado', 'parada'].some(w => n.includes(w))
 }
 
 function cleanCity(value: string) {
   let city = cleanSpaces(value)
   city = city.replace(/^(de|desde)\s+/i, '')
   city = city.replace(/\s+(de|a)\s*$/i, '')
-  return cleanSpaces(city)
+  city = cleanSpaces(city)
+  if (!city) return city
+  const canonical = formatCityLabel(city)
+  return canonical === 'Sin ciudad' ? city : canonical
 }
 
 function parseRouteFromLine(rawLine: string) {
   const raw = stripNoise(rawLine)
-  if (!raw) return null
+  if (!raw || UI_NOISE_LINE.test(raw)) return null
 
-  const arrowMatch = raw.match(/^(.+?)\s*(?:->|→|-)\s*(.+)$/)
+  // "Cali a San Andrés" (pantallazo Avianca / apps de viaje)
+  const cityToCity = raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,35}?)\s+a\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,35})$/i)
+  if (cityToCity) {
+    const origin = cleanCity(cityToCity[1])
+    const destination = cleanCity(cityToCity[2])
+    if (
+      origin &&
+      destination &&
+      !isInvalidCityToken(origin) &&
+      !isInvalidCityToken(destination) &&
+      normalize(origin) !== normalize(destination)
+    ) {
+      return { origin, destination }
+    }
+  }
+
+  // Solo separadores con espacios (evita "Check-in" → Check + in no disponible)
+  const arrowMatch = raw.match(/^(.+?)\s*(?:->|→|\s-\s)\s*(.+)$/)
   if (arrowMatch) {
     const origin = cleanCity(arrowMatch[1])
     const destination = cleanCity(arrowMatch[2])
@@ -163,20 +205,220 @@ function normalizeDate(value: string) {
     if (m) return `${d}/${m}/${y}`
   }
 
+  const m5 = v.match(
+    /(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo),?\s*(\d{1,2})\s+([a-z]+)\s+(\d{2,4})/
+  )
+  if (m5) {
+    const d = m5[1].padStart(2, '0')
+    const m = months[m5[2]]
+    const y = m5[3].length === 2 ? `20${m5[3]}` : m5[3]
+    if (m) return `${d}/${m}/${y}`
+  }
+
   return ''
 }
 
-function detectAirlineByCode(code: string) {
-  const airlines: Record<string, string> = {
-    AV: 'Avianca',
-    IB: 'Iberia',
-    UX: 'Air Europa',
-    AA: 'American Airlines',
-    CM: 'Copa Airlines',
-    LA: 'LATAM',
-    W2: 'Word2fly',
+function extractKnownIataCodes(text: string) {
+  const found: string[] = []
+  const regex = /\b([A-Z]{3})\b/g
+  let m: RegExpExecArray | null
+  while ((m = regex.exec(text.toUpperCase())) !== null) {
+    const code = m[1]
+    if (KNOWN_IATA.has(code) && (found.length === 0 || found[found.length - 1] !== code)) {
+      found.push(code)
+    }
   }
-  return airlines[code] || ''
+  return found
+}
+
+function extractTimesFromText(text: string) {
+  const times: string[] = []
+  const regex = /\b(\d{1,2}):(\d{2})\b/g
+  let m: RegExpExecArray | null
+  while ((m = regex.exec(text)) !== null) {
+    const value = to24h(m[1] + ':' + m[2])
+    if (!times.includes(value)) times.push(value)
+  }
+  return times
+}
+
+function parseRouteFromText(text: string) {
+  const match = text.match(
+    /\b([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)\s+a\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)(?=\s|$|\n|Miércoles|Miercoles|Operado|\d)/i
+  )
+  if (!match) return null
+
+  const origin = cleanCity(match[1])
+  const destination = cleanCity(match[2])
+  if (
+    !origin ||
+    !destination ||
+    isInvalidCityToken(origin) ||
+    isInvalidCityToken(destination) ||
+    normalize(origin) === normalize(destination)
+  ) {
+    return null
+  }
+
+  return { origin, destination }
+}
+
+function flightsLookLikeNoise(flights: FlightSegment[]) {
+  return flights.some(f => isInvalidCityToken(f.origin) || isInvalidCityToken(f.destination))
+}
+
+function countParadas(text: string) {
+  const m = text.match(/(\d+)\s*parada/i)
+  return m ? Number(m[1]) : 0
+}
+
+function appendArrivalNextDayData(flight: FlightSegment) {
+  if (
+    flight.departureTime &&
+    flight.arrivalTime &&
+    flight.arrivalTime < flight.departureTime &&
+    flight.date
+  ) {
+    flight.arrivalNextDay = true
+    const [d, m, y] = flight.date.split('/').map(Number)
+    if (!Number.isNaN(d) && !Number.isNaN(m) && !Number.isNaN(y)) {
+      const dt = new Date(y, m - 1, d)
+      dt.setDate(dt.getDate() + 1)
+      flight.arrivalDate =
+        `${String(dt.getDate()).padStart(2, '0')}/` +
+        `${String(dt.getMonth() + 1).padStart(2, '0')}/` +
+        `${dt.getFullYear()}`
+    }
+  }
+}
+
+function buildLegsFromIataPath(
+  iataCodes: string[],
+  times: string[],
+  meta: { date: string; airline: string; bookingCode: string }
+): FlightSegment[] {
+  const legs = iataCodes.length - 1
+  if (legs < 1) return []
+
+  const flights: FlightSegment[] = []
+
+  for (let leg = 0; leg < legs; leg++) {
+    let departureTime = ''
+    let arrivalTime = ''
+
+    if (times.length >= legs * 2) {
+      departureTime = times[leg * 2] || ''
+      arrivalTime = times[leg * 2 + 1] || ''
+    } else if (times.length >= leg + 2) {
+      departureTime = times[leg] || ''
+      arrivalTime = times[leg + 1] || ''
+    } else if (leg === 0 && times.length >= 2) {
+      departureTime = times[0]
+      arrivalTime = times[1]
+    } else if (leg === legs - 1 && times.length >= 2) {
+      departureTime = times[times.length - 2] || ''
+      arrivalTime = times[times.length - 1] || ''
+    }
+
+    const flight: FlightSegment = {
+      segment: leg + 1,
+      airline: meta.airline || 'Aerolinea',
+      flightNumber: '',
+      origin: cityFromIata(iataCodes[leg]),
+      destination: cityFromIata(iataCodes[leg + 1]),
+      date: meta.date,
+      departureTime,
+      arrivalTime,
+      bookingCode: meta.bookingCode,
+    }
+
+    appendArrivalNextDayData(flight)
+    flights.push(flight)
+  }
+
+  return flights
+}
+
+type CardParseResult = { flights: FlightSegment[]; hints: string[] }
+
+/** Pantallazos tipo tarjeta Avianca: "Cali a San Andrés", CLO, ADZ, 06:15, 11:10 */
+function parseScreenshotCard(
+  text: string,
+  bookingCodes: { airline: string; code: string }[]
+): CardParseResult {
+  const hints: string[] = []
+  const route = parseRouteFromText(text)
+  const iataCodes = extractKnownIataCodes(text)
+  const times = extractTimesFromText(text)
+
+  let origin = route?.origin || ''
+  let destination = route?.destination || ''
+
+  if (!origin && iataCodes.length >= 2) {
+    origin = cityFromIata(iataCodes[0])
+    destination = cityFromIata(iataCodes[iataCodes.length - 1])
+  }
+
+  if (!origin || !destination || isInvalidCityToken(origin) || isInvalidCityToken(destination)) {
+    return { flights: [], hints }
+  }
+
+  let date = ''
+  for (const line of text.split('\n')) {
+    const d = normalizeDate(stripNoise(line))
+    if (d) {
+      date = d
+      break
+    }
+  }
+  if (!date) {
+    const inline = text.match(
+      /(\d{1,2})\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})/i
+    )
+    if (inline) date = normalizeDate(stripNoise(inline[0]))
+  }
+
+  let airline = detectAirlineFromText(text)
+
+  const meta = {
+    date,
+    airline: airline || 'Aerolinea',
+    bookingCode: bookingCodes[0]?.code || '',
+  }
+
+  const paradas = countParadas(text)
+
+  // Vista expandida: CLO → BOG → ADZ con varias horas
+  if (iataCodes.length >= 3) {
+    const legs = buildLegsFromIataPath(iataCodes, times, meta)
+    if (legs.length > 0) return { flights: legs, hints }
+  }
+
+  if (paradas > 0 && iataCodes.length === 2) {
+    hints.push(
+      `Se detectó ${paradas} escala(s) en la captura, pero solo aparecen ${iataCodes[0]} y ${iataCodes[1]}. ` +
+        'Abre el detalle del vuelo en la app (donde se ve cada tramo) y pega otra captura para agregar los segmentos.'
+    )
+  }
+
+  const flight: FlightSegment = {
+    segment: 1,
+    airline: meta.airline,
+    flightNumber: '',
+    origin,
+    destination,
+    date: meta.date,
+    departureTime: times[0] || '',
+    arrivalTime: times[times.length - 1] || times[0] || '',
+    bookingCode: meta.bookingCode,
+  }
+
+  appendArrivalNextDayData(flight)
+  return { flights: [flight], hints }
+}
+
+function detectAirlineByCode(code: string) {
+  return AIRLINE_BY_PREFIX[code.toUpperCase()] || ''
 }
 
 function parsePassengerLines(lines: string[]) {
@@ -412,16 +654,92 @@ function parseFlights(lines: string[], bookingCodes: { airline: string; code: st
   return flights
 }
 
-export function parseItinerary(texts: string[]): Itinerary {
-  const text = texts.join('\n')
+function parseOneOcrText(text: string): {
+  flights: FlightSegment[]
+  hints: string[]
+  passengers: { fullName: string }[]
+  bookingCodes: { airline: string; code: string }[]
+} {
   const lines = text
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean)
 
+  const latamParsed = tryParseLatamItinerary(text)
+  if (latamParsed) {
+    return {
+      flights: latamParsed.flights,
+      hints: latamParsed.hints,
+      passengers: latamParsed.passengers,
+      bookingCodes: latamParsed.bookingCodes,
+    }
+  }
+
+  const jetSmartParsed = tryParseJetSmartItinerary(text)
+  if (jetSmartParsed) {
+    return {
+      flights: jetSmartParsed.flights,
+      hints: jetSmartParsed.hints,
+      passengers: jetSmartParsed.passengers,
+      bookingCodes: jetSmartParsed.bookingCodes,
+    }
+  }
+
+  const wingoParsed = tryParseWingoItinerary(text)
+  if (wingoParsed) {
+    return {
+      flights: wingoParsed.flights,
+      hints: wingoParsed.hints,
+      passengers: wingoParsed.passengers,
+      bookingCodes: wingoParsed.bookingCodes,
+    }
+  }
+
   const passengers = parsePassengerLines(lines)
   const bookingCodes = parseBookingCodes(text)
-  const flights = parseFlights(lines, bookingCodes)
+  const pnr = bookingCodes[0]?.code || ''
+
+  if (isGdsTableFormat(text)) {
+    const gdsFlights = parseGdsItineraryTable(text, pnr)
+    if (gdsFlights.length > 0) {
+      return { flights: gdsFlights, hints: [], passengers, bookingCodes }
+    }
+  }
+
+  const lineFlights = parseFlights(lines, bookingCodes)
+  const card = parseScreenshotCard(text, bookingCodes)
+  const flights =
+    card.flights.length > 0 && (lineFlights.length === 0 || flightsLookLikeNoise(lineFlights))
+      ? card.flights
+      : lineFlights
+
+  return { flights, hints: card.hints, passengers, bookingCodes }
+}
+
+export function parseItinerary(texts: string[]): Itinerary {
+  const sources = texts.map(t => t.trim()).filter(Boolean)
+  const combinedText = sources.join('\n')
+
+  let flights: FlightSegment[] = []
+  const hints: string[] = []
+  let passengers: { fullName: string }[] = [{ fullName: '' }]
+  const bookingCodes: { airline: string; code: string }[] = []
+
+  for (const text of sources.length > 0 ? sources : ['']) {
+    const parsed = parseOneOcrText(text)
+    flights = mergeFlightSegments(flights, parsed.flights).segments
+    hints.push(...parsed.hints)
+
+    if (parsed.passengers.some(p => p.fullName.trim())) {
+      passengers = parsed.passengers
+    }
+
+    for (const code of parsed.bookingCodes) {
+      if (!bookingCodes.some(b => b.code === code.code)) {
+        bookingCodes.push(code)
+      }
+    }
+  }
 
   if (bookingCodes.length > 0 && flights.length > 0 && bookingCodes[0].airline === 'Desconocida') {
     bookingCodes[0].airline = flights[0].airline || 'Desconocida'
@@ -431,10 +749,11 @@ export function parseItinerary(texts: string[]): Itinerary {
     passengers,
     bookingCodes,
     flights,
+    hints: [...new Set(hints)],
     baggage: {
       personalItem: true,
-      cabin10kg: true,
-      checked23kg: !/sin equipaje facturado/i.test(normalize(text)),
+      cabin10kg: false,
+      checked23kg: false,
     },
   }
 }

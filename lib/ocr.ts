@@ -16,7 +16,8 @@ export async function runOCR(file: File): Promise<string> {
   } catch {
     throw new Error(
       `No se pudo conectar al servicio OCR (${OCR_SERVICE_URL}). ` +
-        'Inicia el OCR local en ocr-service (npm install && npm start) o configura OCR_SERVICE_URL.'
+        'Inicia el OCR Python (ocr-service-python: python main.py) o el servicio Node legacy, ' +
+        'o configura OCR_SERVICE_URL.'
     )
   }
 

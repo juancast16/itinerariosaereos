@@ -20,6 +20,10 @@
 # production
 /build
 
+# python ocr
+ocr-service-python/.venv/
+ocr-service-python/**/__pycache__/
+
 # misc
 .DS_Store
 *.pem

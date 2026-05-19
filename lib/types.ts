@@ -15,6 +15,9 @@ export interface Itinerary {
     cabin10kg: boolean
     checked23kg: boolean
   }
+
+  /** Avisos del parser (p. ej. falta captura expandida de escala). */
+  hints?: string[]
 }
 
 export interface FlightSegment {

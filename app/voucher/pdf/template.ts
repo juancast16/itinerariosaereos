@@ -1,3 +1,4 @@
+import { citiesMatch, formatCityLabel } from '@/lib/city-keys'
 import { Itinerary } from '@/lib/types'
 import fs from 'fs'
 import path from 'path'
@@ -64,17 +65,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
   }
 
   function formatCity(value: string) {
-    const city = (value || '').trim()
-    return city || 'Sin ciudad'
-  }
-
-  function normalizeCityKey(value: string) {
-    return (value || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '')
-      .trim()
+    return formatCityLabel(value)
   }
 
   function parseDateFlexible(dateStr: string) {
@@ -110,11 +101,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
   }
 
   function isRealConnection(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
-    const sameAirport =
-      normalizeCityKey(prev.destination) !== '' &&
-      normalizeCityKey(prev.destination) === normalizeCityKey(next.origin)
-
-    if (!sameAirport) return false
+    if (!citiesMatch(prev.destination, next.origin)) return false
 
     const layover = calcLayoverMinutes(prev, next)
     if (layover === null) return false

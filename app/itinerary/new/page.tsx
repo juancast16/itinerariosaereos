@@ -1,5 +1,7 @@
 'use client'
 
+import { isEmptyFlightSegment, mergeFlightSegments } from '@/lib/merge-flights'
+import { FlightSegment } from '@/lib/types'
 import { useEffect, useRef, useState } from 'react'
 
 const AIRLINES = [
@@ -45,6 +47,34 @@ type ParsedItinerary = {
     personalItem?: boolean
     cabin10kg?: boolean
     checked23kg?: boolean
+  }
+  hints?: string[]
+}
+
+function flightFormToSegment(f: FlightForm, segment: number): FlightSegment {
+  return {
+    segment,
+    airline: f.airline,
+    flightNumber: f.flightNumber,
+    bookingCode: f.bookingCode,
+    origin: f.origin,
+    destination: f.destination,
+    date: f.date,
+    departureTime: f.departureTime,
+    arrivalTime: f.arrivalTime,
+  }
+}
+
+function segmentToFlightForm(f: FlightSegment): FlightForm {
+  return {
+    airline: f.airline || '',
+    flightNumber: (f.flightNumber || '').toUpperCase(),
+    bookingCode: (f.bookingCode || '').toUpperCase(),
+    origin: f.origin || '',
+    destination: f.destination || '',
+    date: toDateInput(f.date),
+    departureTime: toTimeInput(f.departureTime),
+    arrivalTime: toTimeInput(f.arrivalTime),
   }
 }
 
@@ -92,7 +122,7 @@ export default function NewItinerary() {
 
   const [baggage, setBaggage] = useState({
     personalItem: true,
-    cabin10kg: true,
+    cabin10kg: false,
     checked23kg: false,
   })
 
@@ -119,9 +149,9 @@ export default function NewItinerary() {
 
       if (images.length === 0) return
       e.preventDefault()
-      addScreenshotFiles(images, { replace: true })
+      addScreenshotFiles(images, { replace: false })
       setParseMessage(
-        `Se pegaron ${images.length} imagen(es) y se reemplazo la carga anterior. Ahora pulsa \"Procesar pantallazos\".`
+        `Se agregaron ${images.length} imagen(es) a la cola. Pulsa \"Procesar y agregar segmentos\".`
       )
     }
 
@@ -154,9 +184,9 @@ export default function NewItinerary() {
   function onScreenshotsSelected(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return
     const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'))
-    addScreenshotFiles(files, { replace: true })
+    addScreenshotFiles(files, { replace: false })
     setParseMessage(
-      `Se seleccionaron ${files.length} imagen(es) y se reemplazo la carga anterior. Ahora pulsa \"Procesar pantallazos\".`
+      `Se agregaron ${files.length} imagen(es) a la cola. Pulsa \"Procesar y agregar segmentos\".`
     )
 
     if (e.target.value) {
@@ -174,75 +204,134 @@ export default function NewItinerary() {
     setParseMessage('Procesando pantallazos con OCR...')
 
     try {
-      const formData = new FormData()
-      screenshotFiles.forEach(file => formData.append('images', file))
+      let accumulated = flights
+        .map((f, index) => flightFormToSegment(f, index + 1))
+        .filter(f => !isEmptyFlightSegment(f))
 
-      const res = await fetch('/api/itinerary/preview', {
-        method: 'POST',
-        body: formData,
-      })
+      let totalAdded = 0
+      let lastParsed: ParsedItinerary | null = null
+      let lastIncomingCount = 0
 
-      if (!res.ok) {
-        let backendMessage = 'No se pudo procesar OCR'
-        try {
-          const errorBody = await res.json()
-          backendMessage = errorBody?.detail || errorBody?.error || backendMessage
-        } catch {
-          // no-op: fallback al mensaje por defecto
+      for (const file of screenshotFiles) {
+        const formData = new FormData()
+        formData.append('images', file)
+
+        const res = await fetch('/api/itinerary/preview', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!res.ok) {
+          let backendMessage = 'No se pudo procesar OCR'
+          try {
+            const errorBody = await res.json()
+            backendMessage = errorBody?.detail || errorBody?.error || backendMessage
+          } catch {
+            // no-op: fallback al mensaje por defecto
+          }
+          throw new Error(backendMessage)
         }
-        throw new Error(backendMessage)
+
+        const parsed: ParsedItinerary = await res.json()
+        lastParsed = parsed
+
+        const incomingForms =
+          parsed.flights && parsed.flights.length > 0
+            ? parsed.flights.map(f => ({
+                airline: f.airline || '',
+                flightNumber: (f.flightNumber || '').toUpperCase(),
+                bookingCode: (f.bookingCode || '').toUpperCase(),
+                origin: f.origin || '',
+                destination: f.destination || '',
+                date: toDateInput(f.date),
+                departureTime: toTimeInput(f.departureTime),
+                arrivalTime: toTimeInput(f.arrivalTime),
+              }))
+            : []
+
+        lastIncomingCount += incomingForms.length
+
+        const incomingSegments = incomingForms.map((f, index) =>
+          flightFormToSegment(f, index + 1)
+        )
+
+        const { segments, addedCount } = mergeFlightSegments(accumulated, incomingSegments)
+        accumulated = segments
+        totalAdded += addedCount
       }
 
-      const parsed: ParsedItinerary = await res.json()
-
       const parsedPassengers =
-        parsed.passengers && parsed.passengers.length > 0
-          ? parsed.passengers.map(p => ({ fullName: p.fullName || '' }))
+        lastParsed?.passengers && lastParsed.passengers.length > 0
+          ? lastParsed.passengers.map(p => ({ fullName: p.fullName || '' }))
           : [{ fullName: '' }]
 
-      const parsedFlights =
-        parsed.flights && parsed.flights.length > 0
-          ? parsed.flights.map(f => ({
-              airline: f.airline || '',
-              flightNumber: (f.flightNumber || '').toUpperCase(),
-              bookingCode: (f.bookingCode || '').toUpperCase(),
-              origin: f.origin || '',
-              destination: f.destination || '',
-              date: toDateInput(f.date),
-              departureTime: toTimeInput(f.departureTime),
-              arrivalTime: toTimeInput(f.arrivalTime),
-            }))
-          : [emptyFlight()]
+      setPassengers(prev => {
+        const hasNewNames = parsedPassengers.some(p => p.fullName.trim())
+        if (!hasNewNames) return prev
+        const currentEmpty = prev.every(p => !p.fullName.trim())
+        return currentEmpty ? parsedPassengers : prev
+      })
 
-      setPassengers(parsedPassengers)
-      setFlights(parsedFlights)
+      setFlights(
+        accumulated.length > 0 ? accumulated.map(segmentToFlightForm) : [emptyFlight()]
+      )
+
+      const parsedFlights =
+        lastParsed?.flights?.map(f => ({
+          airline: f.airline || '',
+          flightNumber: (f.flightNumber || '').toUpperCase(),
+          bookingCode: (f.bookingCode || '').toUpperCase(),
+          origin: f.origin || '',
+          destination: f.destination || '',
+          date: toDateInput(f.date),
+          departureTime: toTimeInput(f.departureTime),
+          arrivalTime: toTimeInput(f.arrivalTime),
+        })) ?? []
 
       if (parsedFlights[0]?.airline) {
         setAirline(parsedFlights[0].airline)
       }
 
-      if (parsed.baggage) {
-        setBaggage({
-          personalItem: parsed.baggage.personalItem ?? true,
-          cabin10kg: parsed.baggage.cabin10kg ?? true,
-          checked23kg: parsed.baggage.checked23kg ?? false,
-        })
-      }
+      // Tras OCR: solo artículo personal por defecto (el usuario marca el resto si aplica)
+      setBaggage({
+        personalItem: true,
+        cabin10kg: false,
+        checked23kg: false,
+      })
 
       const hasPassengerData = parsedPassengers.some(p => p.fullName.trim().length > 0)
-      const hasFlightData = parsedFlights.some(
-        f =>
-          f.origin.trim().length > 0 ||
-          f.destination.trim().length > 0 ||
-          f.flightNumber.trim().length > 0
-      )
+      const hasFlightData =
+        accumulated.length > 0 ||
+        parsedFlights.some(
+          f =>
+            f.origin.trim().length > 0 ||
+            f.destination.trim().length > 0 ||
+            f.flightNumber.trim().length > 0
+        )
+
+      const hintText = lastParsed?.hints?.length ? lastParsed.hints.join(' ') : ''
 
       if (!hasPassengerData && !hasFlightData) {
         setParseMessage(
           'OCR ejecutado, pero no se detectaron datos utiles del vuelo. Prueba otro pantallazo mas completo.'
         )
       } else {
-        setParseMessage('OCR aplicado. Revisa y corrige campos antes de generar el PDF.')
+        setParseMessage(
+          [
+            totalAdded > 0
+              ? `Se agregaron ${totalAdded} segmento(s) nuevo(s). Total en itinerario: ${accumulated.length}.`
+              : lastIncomingCount > 0
+                ? `Se detectaron ${lastIncomingCount} segmento(s) en la imagen, pero ya estaban en el itinerario (sin duplicar). Total: ${accumulated.length}.`
+                : accumulated.length > 0
+                  ? `Sin segmentos nuevos en esta imagen. Total en itinerario: ${accumulated.length}.`
+                  : 'OCR aplicado.',
+            hintText,
+            'Revisa y corrige antes de generar el PDF.',
+          ]
+            .filter(Boolean)
+            .join(' ')
+        )
+        setScreenshotFiles([])
       }
     } catch (error) {
       const message =
@@ -339,7 +428,8 @@ export default function NewItinerary() {
       >
         <p className="text-sm font-medium">Pega con Ctrl+V o haz clic para seleccionar imagenes</p>
         <p className="text-xs text-gray-600 mt-1">
-          Puedes pegar varios pantallazos del itinerario y autollenar este formulario con OCR.
+          Pega cada captura (resumen o detalle con escala). Cada vez que proceses, se suman segmentos sin
+          borrar los anteriores. Si dice &quot;1 Parada&quot;, abre el detalle del vuelo y pega otra captura.
         </p>
 
         <input
@@ -363,7 +453,7 @@ export default function NewItinerary() {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          {isParsingScreenshots ? 'Procesando OCR...' : 'Procesar pantallazos'}
+          {isParsingScreenshots ? 'Procesando OCR...' : 'Procesar y agregar segmentos'}
         </button>
 
         <button
@@ -430,8 +520,8 @@ export default function NewItinerary() {
 
       <h2 className="text-xl font-bold mt-6">Segmentos</h2>
       <p className="text-sm text-gray-600">
-        Para vuelos con escala: agrega cada tramo como un segmento nuevo y conserva el mismo PNR. Para
-        tramos separados (otro tiquete): usa un PNR distinto.
+        Con escala: pega la captura del detalle expandido o usa + Agregar segmento. Mismo PNR en todos los
+        tramos del mismo tiquete. Si es otro tiquete, usa un PNR distinto.
       </p>
 
       {flights.map((flight, index) => (
