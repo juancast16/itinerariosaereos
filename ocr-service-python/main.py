@@ -22,7 +22,9 @@ from PIL import Image
 
 PORT = int(os.environ.get("PORT", "4001"))
 USE_GPU = os.environ.get("OCR_USE_GPU", "").lower() in ("1", "true", "yes")
-LANGS = [s.strip() for s in os.environ.get("OCR_LANGS", "es,en").split(",") if s.strip()]
+# En Render free (512MB) usar solo OCR_LANGS=es. es+en suele requerir ~1–2 GB RAM.
+LANGS = [s.strip() for s in os.environ.get("OCR_LANGS", "es").split(",") if s.strip()]
+PRELOAD_OCR = os.environ.get("OCR_PRELOAD", "").lower() in ("1", "true", "yes")
 
 _reader: easyocr.Reader | None = None
 
@@ -69,11 +71,14 @@ def run_ocr_on_bytes(data: bytes) -> str:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Precarga modelos al arrancar (evita timeout en la 1ª petición)
-    try:
-        get_reader()
-    except Exception as exc:
-        print(f"AVISO: no se pudo precargar EasyOCR: {exc}")
+    # En Render (<512MB) no precargar: el deploy falla con OOM. Carga en la 1ª petición /ocr.
+    if PRELOAD_OCR:
+        try:
+            get_reader()
+        except Exception as exc:
+            print(f"AVISO: no se pudo precargar EasyOCR: {exc}")
+    else:
+        print("EasyOCR: carga diferida (primera petición /ocr). OCR_PRELOAD=1 para precargar.")
     yield
 
 

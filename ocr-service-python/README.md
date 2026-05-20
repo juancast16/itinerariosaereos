@@ -43,8 +43,22 @@ OCR_SERVICE_URL=http://localhost:4001/ocr
 | Variable     | Default   | Descripción                          |
 |-------------|-----------|--------------------------------------|
 | `PORT`      | `4001`    | Puerto HTTP                          |
-| `OCR_LANGS` | `es,en`   | Idiomas EasyOCR (coma separada)      |
+| `OCR_LANGS` | `es`      | Idiomas EasyOCR (`es` solo ahorra RAM) |
+| `OCR_PRELOAD` | vacío   | `1` precarga al arrancar (local); en Render dejar vacío |
 | `OCR_USE_GPU` | vacío   | `true` si tienes CUDA                |
+
+## Render.com
+
+EasyOCR **no cabe** en el plan free (512 MB). El servicio OCR debe usar:
+
+- **Instance type:** al menos **1 GB RAM** (recomendado **2 GB**)
+- **Root Directory:** `ocr-service-python`
+- **Runtime:** Docker
+- **Variables:** `OCR_LANGS=es` (sin `OCR_PRELOAD`)
+
+La app Next.js va en **otro** Web Service (Node, raíz del repo, rama `main`), con:
+
+`OCR_SERVICE_URL=https://tu-ocr.onrender.com/ocr`
 
 ## Docker (opcional)
 
