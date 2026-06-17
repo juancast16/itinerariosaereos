@@ -385,6 +385,11 @@ section h2 {
   margin-bottom: 6px;
 }
 
+.observaciones-disclaimer {
+  margin-top: 10px;
+  font-weight: 700;
+}
+
 .page-break {
   page-break-before: always;
   break-before: page;

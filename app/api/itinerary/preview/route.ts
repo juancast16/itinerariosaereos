@@ -1,6 +1,7 @@
 // src/app/api/itinerary/preview/route.ts
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 import { NextResponse } from 'next/server'
 import { runOCR } from '@/lib/ocr'

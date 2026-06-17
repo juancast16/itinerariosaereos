@@ -354,6 +354,7 @@ ${shouldMoveBaggageToNextPage ? '' : '<div class="page-break"></div>'}
     <li>LOS TIQUETES NO TIENEN REEMBOLSO UNA VEZ EMITIDOS POR LA AEROLÍNEA.</li>
     <li>TODO CAMBIO DE FECHA O RUTA SE DEBE COTIZAR Y PAGAR LUEGO DE RECIBIDA LA COTIZACION SOLICITADA - CAMBIO DE NOMBRE EN ALGUNAS AEROLÍNEAS NO ESTÁN PERMITIDOS Y EN OTRAS TIENE COSTO, POR FAVOR TENERLO EN CUENTA.</li>
   </ul>
+  <p class="observaciones-disclaimer"><strong>RECUERDE: Los vuelos están sujetos a cambios de itinerarios por la aeronáutica civil y CONEXIONTRIP AGENCIA DE VIAJES no es responsable de dichos cambios. Puede haber cambios inesperados de itinerarios, sobre los cuales CONEXIONTRIP AGENCIA DE VIAJES no tienen ninguna responsabilidad, ni puede ser responsabilizado de los mismos, siendo responsabilidad exclusiva del cliente los valores adicionales que deba pagar por cambios de fechas u horarios. CONEXIONTRIP AGENCIA DE VIAJES será diligente en encontrar a los clientes una solución para poder completar el viaje en los mismos términos y condiciones adquiridos por el cliente, sin embargo no se hace responsable por cambios de itinerarios, días de salida y de regreso, demoras u otros atribuibles a los cambios diarios que está presentando el mercado aéreo CONEXIONTRIP no se hace responsable de pasajeros internacionales que sean denegados sus ingresos por parte de migración en destino, cada país se reserva su derecho de admisión.</strong></p>
 </section>
 
 </main>

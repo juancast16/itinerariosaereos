@@ -157,8 +157,8 @@ const itinerary = {
   flights,
   baggage: {
     personalItem: true,
-    cabin10kg: true,
-    checked23kg: !/sin equipaje facturado/i.test(text)
+    cabin10kg: false,
+    checked23kg: false,
   }
 }
 
