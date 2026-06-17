@@ -376,7 +376,7 @@ section h2 {
 }
 
 .observaciones {
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.28;
   margin-top: 0;
 }
@@ -387,6 +387,7 @@ section h2 {
 
 .observaciones-disclaimer {
   margin-top: 10px;
+  font-size: 13px;
   font-weight: 700;
 }
 
