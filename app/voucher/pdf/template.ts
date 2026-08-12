@@ -209,7 +209,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
                 <div class="airport-col airport-col-right">
                   <div class="airport-label">Destino</div>
                   <div class="airport-code">${formatCity(flight.destination)}</div>
-                  <div class="airport-time">${formatTime12h(flight.arrivalTime)}</div>
+                  <div class="airport-time">${formatTime12h(flight.arrivalTime)}${flight.arrivalNextDay ? ' <span class="next-day">(+1)</span>' : ''}</div>
                 </div>
               </div>
 

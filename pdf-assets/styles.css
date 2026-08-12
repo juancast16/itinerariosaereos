@@ -277,6 +277,14 @@ section h2 {
   font-weight: 700;
 }
 
+.next-day {
+  color: #d97706;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 2px;
+  vertical-align: super;
+}
+
 .plane-col {
   width: 12%;
   text-align: center;
