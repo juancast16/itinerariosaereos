@@ -14,6 +14,7 @@ const AIRLINES = [
   'Jetsmart',
   'Wizz',
   'Word2fly',
+  'Ryanair',
 ]
 
 type PassengerForm = {

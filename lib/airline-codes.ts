@@ -14,6 +14,8 @@ export const AIRLINE_BY_PREFIX: Record<string, string> = {
   UX: 'Air Europa',
   AA: 'American Airlines',
   W2: 'Word2fly',
+  FR: 'Ryanair',
+  RK: 'Ryanair',
 }
 
 const PREFIXES = Object.keys(AIRLINE_BY_PREFIX).sort((a, b) => b.length - a.length)
@@ -32,7 +34,7 @@ export function airlineFromFlightNumber(flightNumber: string) {
 }
 
 const FLIGHT_PREFIX_PATTERN =
-  '(?:4C|P5|JA|JZ|LA|LP|JJ|XL|AV|CM|IB|UX|AA|W2)'
+  '(?:4C|P5|JA|JZ|LA|LP|JJ|XL|AV|CM|IB|UX|AA|W2|FR|RK)'
 
 /** "JA 772" → "JA772" (solo prefijos de aerolínea; no tocar horas 05:40). */
 export function normalizeFlightNumberSpacing(text: string) {
@@ -48,6 +50,7 @@ export function detectAirlineFromText(text: string) {
   if (/aero\s*republica/i.test(text)) return 'Wingo'
   if (/latam/i.test(text)) return 'LATAM'
   if (/avianca/i.test(text)) return 'Avianca'
+  if (/\bryanair\b/i.test(text)) return 'Ryanair'
 
   const operated = text.match(
     /(?:operado|operated|marketed)\s+(?:por|by)\s*:?\s*([A-Za-z0-9\s]+?)(?:\n|,|\.|fare|booking|status|$)/i
@@ -59,6 +62,7 @@ export function detectAirlineFromText(text: string) {
     if (name.includes('latam')) return 'LATAM'
     if (name.includes('avianca')) return 'Avianca'
     if (name.includes('copa')) return 'Copa Airlines'
+    if (name.includes('ryanair')) return 'Ryanair'
   }
 
   return ''

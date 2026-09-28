@@ -33,6 +33,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     Jetsmart: 'jetsmart.png',
     Wizz: 'wizz.png',
     Word2fly: 'word2fly.png',
+    Ryanair: 'ryanair.png',
   }
 
   const AIRLINE_LOGO_SCALE: Record<string, number> = {

@@ -126,7 +126,9 @@ for (const l of lines) {
       AV: 'Avianca',
       LA: 'LATAM',
       UX: 'Air Europa',
-      AA: 'American Airlines'
+      AA: 'American Airlines',
+      FR: 'Ryanair',
+      RK: 'Ryanair',
     }
     current.airline = airlines[code] || null
   }
