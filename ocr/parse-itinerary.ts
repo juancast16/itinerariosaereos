@@ -129,6 +129,7 @@ for (const l of lines) {
       AA: 'American Airlines',
       FR: 'Ryanair',
       RK: 'Ryanair',
+      AF: 'Air France',
     }
     current.airline = airlines[code] || null
   }
