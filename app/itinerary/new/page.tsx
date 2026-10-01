@@ -22,6 +22,8 @@ type PassengerForm = {
   fullName: string
 }
 
+type TripLink = 'auto' | 'connection' | 'newTrip' | 'return'
+
 type FlightForm = {
   airline: string
   flightNumber: string
@@ -31,6 +33,7 @@ type FlightForm = {
   date: string
   departureTime: string
   arrivalTime: string
+  tripLink: TripLink
 }
 
 type ParsedItinerary = {
@@ -64,6 +67,7 @@ function flightFormToSegment(f: FlightForm, segment: number): FlightSegment {
     date: f.date,
     departureTime: f.departureTime,
     arrivalTime: f.arrivalTime,
+    tripLink: f.tripLink || 'auto',
   }
 }
 
@@ -77,6 +81,7 @@ function segmentToFlightForm(f: FlightSegment): FlightForm {
     date: toDateInput(f.date),
     departureTime: toTimeInput(f.departureTime),
     arrivalTime: toTimeInput(f.arrivalTime),
+    tripLink: f.tripLink || 'auto',
   }
 }
 
@@ -90,6 +95,7 @@ function emptyFlight(): FlightForm {
     date: '',
     departureTime: '',
     arrivalTime: '',
+    tripLink: 'auto',
   }
 }
 
@@ -248,6 +254,7 @@ export default function NewItinerary() {
                 date: toDateInput(f.date),
                 departureTime: toTimeInput(f.departureTime),
                 arrivalTime: toTimeInput(f.arrivalTime),
+                tripLink: 'auto' as TripLink,
               }))
             : []
 
@@ -387,6 +394,7 @@ export default function NewItinerary() {
         date: flight.date,
         departureTime: flight.departureTime,
         arrivalTime: flight.arrivalTime,
+        tripLink: index === 0 ? 'auto' : flight.tripLink || 'auto',
       })),
       baggage,
     }
@@ -522,8 +530,8 @@ export default function NewItinerary() {
 
       <h2 className="text-xl font-bold mt-6">Segmentos</h2>
       <p className="text-sm text-gray-600">
-        Con escala: pega la captura del detalle expandido o usa + Agregar segmento. Mismo PNR en todos los
-        tramos del mismo tiquete. Si es otro tiquete, usa un PNR distinto.
+        Con escala: pega la captura del detalle expandido o usa + Agregar segmento. Si un vuelo extra
+        sale de la misma ciudad pero no es escala, marca &quot;Nuevo trayecto (vuelo extra)&quot;.
       </p>
 
       {flights.map((flight, index) => (
@@ -644,6 +652,26 @@ export default function NewItinerary() {
                 }}
               />
             </div>
+
+            {index > 0 && (
+              <div className="col-span-2">
+                <label className="text-sm font-medium">Tipo respecto al segmento anterior</label>
+                <select
+                  className="w-full border p-2 rounded"
+                  value={flight.tripLink}
+                  onChange={e => {
+                    const updated = [...flights]
+                    updated[index].tripLink = e.target.value as TripLink
+                    setFlights(updated)
+                  }}
+                >
+                  <option value="auto">Automatico (el sistema decide)</option>
+                  <option value="connection">Escala / continuacion del trayecto</option>
+                  <option value="newTrip">Nuevo trayecto (vuelo extra)</option>
+                  <option value="return">Viaje de vuelta</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {flights.length > 1 && (

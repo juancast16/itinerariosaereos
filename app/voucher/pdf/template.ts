@@ -102,16 +102,45 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     return diff
   }
 
-  /** Conexión real: llega a la ciudad de salida del siguiente vuelo (aunque el PNR sea distinto). */
-  function isRealConnection(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
+  /** Conexión candidata por ciudades + tiempo de escala. */
+  function citiesConnect(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
     if (!citiesMatch(prev.destination, next.origin)) return false
 
     const layover = calcLayoverMinutes(prev, next)
-    // Sin fecha/hora completa, si las ciudades encadenan lo tratamos como conexión.
     if (layover === null) return true
-
-    // Hasta 36h: incluye overnight y self-transfer con otro código de reserva.
     return layover >= 0 && layover <= 36 * 60
+  }
+
+  /**
+   * Decide si el siguiente segmento continúa el mismo trayecto.
+   * Respeta tripLink manual; en automático:
+   * - mismo PNR + ciudades encadenadas = escala
+   * - PNR distinto solo si la escala es corta (<= 8h), para self-transfer real
+   */
+  function shouldContinueTrip(
+    prev: Itinerary['flights'][number],
+    next: Itinerary['flights'][number]
+  ) {
+    const link = next.tripLink || 'auto'
+    if (link === 'connection') return true
+    if (link === 'newTrip' || link === 'return') return false
+
+    if (!citiesConnect(prev, next)) return false
+
+    const prevPnr = (prev.bookingCode || 'SIN-PNR').trim().toUpperCase()
+    const nextPnr = (next.bookingCode || 'SIN-PNR').trim().toUpperCase()
+    const samePnr = prevPnr === nextPnr
+
+    if (samePnr) return true
+
+    const layover = calcLayoverMinutes(prev, next)
+    // Vuelo extra con otro PNR: solo se une si es una conexión corta.
+    if (layover === null) return false
+    return layover <= 8 * 60
+  }
+
+  function isRealConnection(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
+    return shouldContinueTrip(prev, next)
   }
 
   function tripEndpoints(trip: TripGroup) {
@@ -123,6 +152,8 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
 
   /** Vuelta real: sale del destino de la ida (o similar) y regresa al origen de la ida. */
   function isReturnTrip(outbound: TripGroup, candidate: TripGroup) {
+    if (candidate.segments[0]?.tripLink === 'return') return true
+
     const out = tripEndpoints(outbound)
     const cand = tripEndpoints(candidate)
 
@@ -141,6 +172,9 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
 
     const outbound = trips[0]
     const trip = trips[index]
+    if (trip.segments[0]?.tripLink === 'newTrip' && !isReturnTrip(outbound, trip)) {
+      return `Trayecto ${index + 1}`
+    }
     if (isReturnTrip(outbound, trip)) {
       const alreadyHasReturn = trips
         .slice(1, index)
@@ -187,10 +221,8 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     for (let i = 1; i < sorted.length; i++) {
       const flight = sorted[i]
       const prev = current.segments[current.segments.length - 1]
-      // Misma o distinta reserva: si es conexión real, sigue siendo el mismo viaje.
-      const isConnection = isRealConnection(prev, flight)
 
-      if (isConnection) {
+      if (shouldContinueTrip(prev, flight)) {
         current.segments.push(flight)
       } else {
         trips.push(current)

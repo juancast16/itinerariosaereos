@@ -37,4 +37,13 @@ export interface FlightSegment {
   arrivalDate?: string
 
   bookingCode?: string
+
+  /**
+   * Cómo encaja este segmento respecto al anterior:
+   * - auto: el PDF decide (escala / nuevo trayecto / vuelta)
+   * - connection: forzar escala del trayecto anterior
+   * - newTrip: forzar nuevo trayecto (vuelo extra)
+   * - return: forzar viaje de vuelta
+   */
+  tripLink?: 'auto' | 'connection' | 'newTrip' | 'return'
 }

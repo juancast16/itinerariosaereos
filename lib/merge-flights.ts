@@ -61,6 +61,9 @@ function enrichSegment(existing: FlightSegment, incoming: FlightSegment): Flight
     arrivalTime: pick(existing.arrivalTime, incoming.arrivalTime),
     arrivalDate: incoming.arrivalDate || existing.arrivalDate,
     arrivalNextDay: incoming.arrivalNextDay ?? existing.arrivalNextDay,
+    tripLink: incoming.tripLink && incoming.tripLink !== 'auto'
+      ? incoming.tripLink
+      : existing.tripLink || 'auto',
   }
 }
 
