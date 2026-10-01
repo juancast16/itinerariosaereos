@@ -35,6 +35,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     Word2fly: 'word2fly.png',
     Ryanair: 'ryanair.png',
     'Air France': 'airfrance.png',
+    'Viva Aerobus': 'vivaaerobus.png',
   }
 
   const AIRLINE_LOGO_SCALE: Record<string, number> = {
