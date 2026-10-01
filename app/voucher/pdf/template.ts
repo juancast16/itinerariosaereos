@@ -102,13 +102,53 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     return diff
   }
 
+  /** Conexión real: llega a la ciudad de salida del siguiente vuelo (aunque el PNR sea distinto). */
   function isRealConnection(prev: Itinerary['flights'][number], next: Itinerary['flights'][number]) {
     if (!citiesMatch(prev.destination, next.origin)) return false
 
     const layover = calcLayoverMinutes(prev, next)
-    if (layover === null) return false
+    // Sin fecha/hora completa, si las ciudades encadenan lo tratamos como conexión.
+    if (layover === null) return true
 
-    return layover >= 0 && layover <= 18 * 60
+    // Hasta 36h: incluye overnight y self-transfer con otro código de reserva.
+    return layover >= 0 && layover <= 36 * 60
+  }
+
+  function tripEndpoints(trip: TripGroup) {
+    return {
+      origin: trip.segments[0].origin,
+      destination: trip.segments[trip.segments.length - 1].destination,
+    }
+  }
+
+  /** Vuelta real: sale del destino de la ida (o similar) y regresa al origen de la ida. */
+  function isReturnTrip(outbound: TripGroup, candidate: TripGroup) {
+    const out = tripEndpoints(outbound)
+    const cand = tripEndpoints(candidate)
+
+    const leavesDestination = citiesMatch(cand.origin, out.destination)
+    const returnsHome = citiesMatch(cand.destination, out.origin)
+    if (leavesDestination && returnsHome) return true
+
+    // Regreso multi-ciudad: termina en el origen de la ida sin empezar ahí.
+    if (returnsHome && !citiesMatch(cand.origin, out.origin)) return true
+
+    return false
+  }
+
+  function tripTitle(trips: TripGroup[], index: number) {
+    if (index === 0) return 'Viaje de ida'
+
+    const outbound = trips[0]
+    const trip = trips[index]
+    if (isReturnTrip(outbound, trip)) {
+      const alreadyHasReturn = trips
+        .slice(1, index)
+        .some((t) => isReturnTrip(outbound, t))
+      if (!alreadyHasReturn) return 'Viaje de vuelta'
+    }
+
+    return `Trayecto ${index + 1}`
   }
 
   function formatTime12h(timeStr: string) {
@@ -147,10 +187,10 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     for (let i = 1; i < sorted.length; i++) {
       const flight = sorted[i]
       const prev = current.segments[current.segments.length - 1]
-      const samePnr = (flight.bookingCode || 'SIN-PNR') === current.pnr
+      // Misma o distinta reserva: si es conexión real, sigue siendo el mismo viaje.
       const isConnection = isRealConnection(prev, flight)
 
-      if (samePnr && isConnection) {
+      if (isConnection) {
         current.segments.push(flight)
       } else {
         trips.push(current)
@@ -170,8 +210,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
 
   const tripsHtml = tripGroups
     .map((trip, tripIndex) => {
-      const title =
-        tripIndex === 0 ? 'Viaje de ida' : tripIndex === 1 ? 'Viaje de vuelta' : `Trayecto ${tripIndex + 1}`
+      const title = tripTitle(tripGroups, tripIndex)
 
       const routeSummary = `${formatCity(trip.segments[0].origin)} -> ${formatCity(trip.segments[trip.segments.length - 1].destination)}`
       const hasScale = trip.segments.length > 1
