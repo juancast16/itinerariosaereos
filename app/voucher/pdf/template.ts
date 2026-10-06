@@ -36,6 +36,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
     Ryanair: 'ryanair.png',
     'Air France': 'airfrance.png',
     'Viva Aerobus': 'vivaaerobus.png',
+    Arajet: 'arajet.png',
   }
 
   const AIRLINE_LOGO_SCALE: Record<string, number> = {

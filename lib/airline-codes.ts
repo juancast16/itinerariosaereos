@@ -18,6 +18,7 @@ export const AIRLINE_BY_PREFIX: Record<string, string> = {
   RK: 'Ryanair',
   AF: 'Air France',
   VB: 'Viva Aerobus',
+  DM: 'Arajet',
 }
 
 const PREFIXES = Object.keys(AIRLINE_BY_PREFIX).sort((a, b) => b.length - a.length)
@@ -36,7 +37,7 @@ export function airlineFromFlightNumber(flightNumber: string) {
 }
 
 const FLIGHT_PREFIX_PATTERN =
-  '(?:4C|P5|JA|JZ|LA|LP|JJ|XL|AV|CM|IB|UX|AA|W2|FR|RK|AF|VB)'
+  '(?:4C|P5|JA|JZ|LA|LP|JJ|XL|AV|CM|IB|UX|AA|W2|FR|RK|AF|VB|DM)'
 
 /** "JA 772" → "JA772" (solo prefijos de aerolínea; no tocar horas 05:40). */
 export function normalizeFlightNumberSpacing(text: string) {
@@ -55,6 +56,7 @@ export function detectAirlineFromText(text: string) {
   if (/\bryanair\b/i.test(text)) return 'Ryanair'
   if (/air\s*france|airfrance/i.test(text)) return 'Air France'
   if (/viva\s*aerobus|vivaaerobus/i.test(text)) return 'Viva Aerobus'
+  if (/\barajet\b/i.test(text)) return 'Arajet'
 
   const operated = text.match(
     /(?:operado|operated|marketed)\s+(?:por|by)\s*:?\s*([A-Za-z0-9\s]+?)(?:\n|,|\.|fare|booking|status|$)/i
@@ -69,6 +71,7 @@ export function detectAirlineFromText(text: string) {
     if (name.includes('ryanair')) return 'Ryanair'
     if (name.includes('air france') || name.includes('airfrance')) return 'Air France'
     if (name.includes('viva aerobus') || name.includes('vivaaerobus')) return 'Viva Aerobus'
+    if (name.includes('arajet')) return 'Arajet'
   }
 
   return ''

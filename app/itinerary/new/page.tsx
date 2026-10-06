@@ -17,6 +17,7 @@ const AIRLINES = [
   'Ryanair',
   'Air France',
   'Viva Aerobus',
+  'Arajet',
 ]
 
 type PassengerForm = {

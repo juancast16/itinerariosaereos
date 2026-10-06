@@ -131,6 +131,7 @@ for (const l of lines) {
       RK: 'Ryanair',
       AF: 'Air France',
       VB: 'Viva Aerobus',
+      DM: 'Arajet',
     }
     current.airline = airlines[code] || null
   }
