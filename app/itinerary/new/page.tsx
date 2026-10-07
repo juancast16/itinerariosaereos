@@ -143,6 +143,41 @@ export default function NewItinerary() {
   const [isParsingScreenshots, setIsParsingScreenshots] = useState(false)
   const [parseMessage, setParseMessage] = useState('')
 
+  const [customAgency, setCustomAgency] = useState(false)
+  const [customAgencyName, setCustomAgencyName] = useState('')
+  const [customAgencyLogo, setCustomAgencyLogo] = useState<string>('')
+  const [customAgencyLogoName, setCustomAgencyLogoName] = useState('')
+  const agencyLogoInputRef = useRef<HTMLInputElement | null>(null)
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('No se pudo leer el logo'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function onAgencyLogoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setSuccessMessage('El logo debe ser una imagen (PNG, JPG o WEBP)')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setSuccessMessage('El logo no puede superar 2 MB')
+      return
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setCustomAgencyLogo(dataUrl)
+      setCustomAgencyLogoName(file.name)
+    } catch {
+      setSuccessMessage('No se pudo cargar el logo')
+    }
+  }
+
   useEffect(() => {
     function handlePaste(e: ClipboardEvent) {
       if (!e.clipboardData) return
@@ -377,6 +412,11 @@ export default function NewItinerary() {
     setIsGenerating(true)
     setSuccessMessage('')
 
+    if (customAgency && !customAgencyName.trim()) {
+      setSuccessMessage('Escribe el nombre de la agencia para el itinerario personalizado')
+      return
+    }
+
     const itineraryData = {
       passengers,
       bookingCodes: Array.from(
@@ -399,6 +439,13 @@ export default function NewItinerary() {
         tripLink: index === 0 ? 'auto' : flight.tripLink || 'auto',
       })),
       baggage,
+      branding: customAgency
+        ? {
+            customAgency: true,
+            agencyName: customAgencyName.trim(),
+            logoDataUrl: customAgencyLogo || undefined,
+          }
+        : { customAgency: false },
     }
 
     try {
@@ -433,6 +480,84 @@ export default function NewItinerary() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6 max-w-xl">
       <h2 className="text-xl font-bold">Carga rapida con pantallazos</h2>
+
+      <div className="border rounded p-4 bg-gray-50 space-y-3">
+        <label className="flex items-center gap-2 font-medium">
+          <input
+            type="checkbox"
+            checked={customAgency}
+            onChange={e => {
+              const enabled = e.target.checked
+              setCustomAgency(enabled)
+              if (!enabled) {
+                setCustomAgencyName('')
+                setCustomAgencyLogo('')
+                setCustomAgencyLogoName('')
+                if (agencyLogoInputRef.current) agencyLogoInputRef.current.value = ''
+              }
+            }}
+          />
+          Itinerario para otra agencia
+        </label>
+        <p className="text-xs text-gray-600">
+          Desactivado = PDF normal de ConexionTrip (logo, NIT y pie de pagina). Activado = nombre
+          personalizado en observaciones; logo opcional; sin pie de pagina de ConexionTrip.
+        </p>
+
+        {customAgency && (
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="text-sm font-medium">Nombre de la agencia</label>
+              <input
+                className="w-full border p-2 rounded"
+                value={customAgencyName}
+                onChange={e => setCustomAgencyName(e.target.value)}
+                placeholder="Ej: Viajes El Sol"
+                required={customAgency}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Logo (opcional)</label>
+              <input
+                ref={agencyLogoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="w-full border p-2 rounded bg-white"
+                onChange={onAgencyLogoSelected}
+              />
+              {customAgencyLogoName ? (
+                <div className="mt-2 flex items-center gap-3">
+                  {customAgencyLogo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={customAgencyLogo}
+                      alt="Vista previa logo"
+                      className="h-12 w-auto object-contain border bg-white rounded"
+                    />
+                  )}
+                  <span className="text-xs text-gray-600">{customAgencyLogoName}</span>
+                  <button
+                    type="button"
+                    className="text-xs text-red-600"
+                    onClick={() => {
+                      setCustomAgencyLogo('')
+                      setCustomAgencyLogoName('')
+                      if (agencyLogoInputRef.current) agencyLogoInputRef.current.value = ''
+                    }}
+                  >
+                    Quitar logo
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  Si no cargas logo, el PDF sale solo con el nombre de la agencia.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div
         className="border-2 border-dashed border-gray-300 rounded p-4 bg-gray-50 cursor-pointer"

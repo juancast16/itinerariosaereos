@@ -18,6 +18,17 @@ export interface Itinerary {
 
   /** Avisos del parser (p. ej. falta captura expandida de escala). */
   hints?: string[]
+
+  /**
+   * Branding opcional. Si no viene o customAgency=false, se usa ConexionTrip
+   * (logo, NIT, footer y textos legales actuales).
+   */
+  branding?: {
+    customAgency?: boolean
+    agencyName?: string
+    /** data URL (image/png|jpeg|webp;base64,...) o vacío para sin logo */
+    logoDataUrl?: string
+  }
 }
 
 export interface FlightSegment {

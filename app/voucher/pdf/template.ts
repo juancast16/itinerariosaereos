@@ -8,20 +8,64 @@ type TripGroup = {
   segments: Itinerary['flights']
 }
 
+const DEFAULT_AGENCY_NAME = 'ConexionTrip Agencia de Viajes'
+const DEFAULT_AGENCY_LEGAL = 'NIT: 901.910.082 | RNT: 80741'
+const DEFAULT_DISCLAIMER_NAME = 'CONEXIONTRIP AGENCIA DE VIAJES'
+const DEFAULT_DISCLAIMER_SHORT = 'CONEXIONTRIP'
+
+function escapeHtml(value: string) {
+  return (value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export function renderPdfTemplate(itinerary: Itinerary): string {
   const cssPath = path.join(process.cwd(), 'pdf-assets/styles.css')
   const styles = fs.readFileSync(cssPath, 'utf8')
 
-  const logoSrc = `data:image/png;base64,${fs.readFileSync(
+  const customAgency = Boolean(itinerary.branding?.customAgency)
+  const agencyNameRaw = (itinerary.branding?.agencyName || '').trim()
+  const agencyName = customAgency
+    ? agencyNameRaw || 'Agencia de viajes'
+    : DEFAULT_AGENCY_NAME
+  const agencyNameHtml = escapeHtml(agencyName)
+  const disclaimerName = customAgency
+    ? escapeHtml(agencyName.toUpperCase())
+    : DEFAULT_DISCLAIMER_NAME
+  const disclaimerShort = customAgency
+    ? escapeHtml(agencyName.toUpperCase())
+    : DEFAULT_DISCLAIMER_SHORT
+
+  const customLogo = (itinerary.branding?.logoDataUrl || '').trim()
+  const defaultLogoSrc = `data:image/png;base64,${fs.readFileSync(
     path.join(process.cwd(), 'pdf-assets/logo.png'),
     'base64'
   )}`
+  const logoSrc = customAgency
+    ? customLogo && customLogo.startsWith('data:image/')
+      ? customLogo
+      : null
+    : defaultLogoSrc
+
+  const showFooter = !customAgency
+  const showLegal = !customAgency
+  const brandingCss = customAgency
+    ? `
+@page { margin: 16px 16px 24px 16px; }
+main { padding-bottom: 24px; }
+body.custom-agency header { }
+.header-left.no-logo { padding-top: 8px; }
+`
+    : ''
 
   const icon = (name: string) =>
     `data:image/png;base64,${fs.readFileSync(
       path.join(process.cwd(), `pdf-assets/${name}.png`),
       'base64'
     )}`
+
 
   const AIRLINE_LOGOS: Record<string, string> = {
     Avianca: 'avianca.png',
@@ -327,17 +371,22 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
 <html>
 <head>
   <style>${styles}</style>
+  ${brandingCss ? `<style>${brandingCss}</style>` : ''}
 </head>
 
-<body>
+<body class="${customAgency ? 'custom-agency' : 'conexiontrip'}">
 
 <header>
   <div class="header-inner">
 
-    <div class="header-left">
-      <img src="${logoSrc}" />
-      <div class="company-name">ConexionTrip Agencia de Viajes</div>
-      <div class="company-legal">NIT: 901.910.082 | RNT: 80741</div>
+    <div class="header-left${logoSrc ? '' : ' no-logo'}">
+      ${logoSrc ? `<img src="${logoSrc}" />` : ''}
+      <div class="company-name">${agencyNameHtml}</div>
+      ${
+        showLegal
+          ? `<div class="company-legal">${DEFAULT_AGENCY_LEGAL}</div>`
+          : ''
+      }
       <div class="company-note">
         Documento informativo - No valido como tiquete aereo
       </div>
@@ -347,7 +396,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
       <div class="reservation-label">Codigo(s) de reserva</div>
       ${
         itinerary.bookingCodes?.map(
-          b => `<div class="reservation-code">${b.airline}: ${b.code}</div>`
+          b => `<div class="reservation-code">${escapeHtml(b.airline)}: ${escapeHtml(b.code)}</div>`
         ).join('') || ''
       }
     </div>
@@ -370,7 +419,7 @@ export function renderPdfTemplate(itinerary: Itinerary): string {
           (p, index) => `
             <div class="passenger-row">
               <span class="passenger-label">Pasajero ${index + 1}</span>
-              <span class="passenger-name">${(p.fullName || 'SIN NOMBRE').toUpperCase()}</span>
+              <span class="passenger-name">${escapeHtml((p.fullName || 'SIN NOMBRE').toUpperCase())}</span>
             </div>
           `
         )
@@ -421,7 +470,7 @@ ${shouldMoveBaggageToNextPage ? '' : '<div class="page-break"></div>'}
   <ul>
     <li>"Presentarse 2 horas antes para vuelos nacionales y 3 horas antes para vuelos internacionales de salida de su vuelo, evítese contratiempos.</li>
     <li>Recuerde que su equipaje permitido está en la parte de abajo de este documento, recuerde que su artículo personal no debe tener rueditas, debe caber debajo del asiento delantero y tener en cuenta las medidas.</li>
-    <li>ConexiónTrip agencia de viajes no es responsable por modificaciones, cambios o cancelaciones por parte de las aerolíneas, ya que esto es directamente con ellas y con la Aeronáutica Civil según los slots disponibles por aeropuertos.</li>
+    <li>${agencyNameHtml} no es responsable por modificaciones, cambios o cancelaciones por parte de las aerolíneas, ya que esto es directamente con ellas y con la Aeronáutica Civil según los slots disponibles por aeropuertos.</li>
     <li>Al momento de su arribo al destino debe inmediatamente contactarse para continuar con todas las indicaciones de su itinerario de viaje.</li>
     <li>Leer antes de su viaje todas las indicaciones escritas en las observaciones de sus vouchers y realizar todas las preguntas pertinentes antes y durante el viaje.</li>
     <li>Solicitar sus Check-in y Check-out de los vuelos de 1 a 2 días antes de la fecha del mismo, si no tenga en cuenta que este puede tener costo en el counter de la aerolínea.</li>
@@ -429,12 +478,14 @@ ${shouldMoveBaggageToNextPage ? '' : '<div class="page-break"></div>'}
     <li>LOS TIQUETES NO TIENEN REEMBOLSO UNA VEZ EMITIDOS POR LA AEROLÍNEA.</li>
     <li>TODO CAMBIO DE FECHA O RUTA SE DEBE COTIZAR Y PAGAR LUEGO DE RECIBIDA LA COTIZACION SOLICITADA - CAMBIO DE NOMBRE EN ALGUNAS AEROLÍNEAS NO ESTÁN PERMITIDOS Y EN OTRAS TIENE COSTO, POR FAVOR TENERLO EN CUENTA.</li>
   </ul>
-  <p class="observaciones-disclaimer"><strong>RECUERDE: Los vuelos están sujetos a cambios de itinerarios por la aeronáutica civil y CONEXIONTRIP AGENCIA DE VIAJES no es responsable de dichos cambios. Puede haber cambios inesperados de itinerarios, sobre los cuales CONEXIONTRIP AGENCIA DE VIAJES no tienen ninguna responsabilidad, ni puede ser responsabilizado de los mismos, siendo responsabilidad exclusiva del cliente los valores adicionales que deba pagar por cambios de fechas u horarios. CONEXIONTRIP AGENCIA DE VIAJES será diligente en encontrar a los clientes una solución para poder completar el viaje en los mismos términos y condiciones adquiridos por el cliente, sin embargo no se hace responsable por cambios de itinerarios, días de salida y de regreso, demoras u otros atribuibles a los cambios diarios que está presentando el mercado aéreo CONEXIONTRIP no se hace responsable de pasajeros internacionales que sean denegados sus ingresos por parte de migración en destino, cada país se reserva su derecho de admisión.</strong></p>
+  <p class="observaciones-disclaimer"><strong>RECUERDE: Los vuelos están sujetos a cambios de itinerarios por la aeronáutica civil y ${disclaimerName} no es responsable de dichos cambios. Puede haber cambios inesperados de itinerarios, sobre los cuales ${disclaimerName} no tienen ninguna responsabilidad, ni puede ser responsabilizado de los mismos, siendo responsabilidad exclusiva del cliente los valores adicionales que deba pagar por cambios de fechas u horarios. ${disclaimerName} será diligente en encontrar a los clientes una solución para poder completar el viaje en los mismos términos y condiciones adquiridos por el cliente, sin embargo no se hace responsable por cambios de itinerarios, días de salida y de regreso, demoras u otros atribuibles a los cambios diarios que está presentando el mercado aéreo ${disclaimerShort} no se hace responsable de pasajeros internacionales que sean denegados sus ingresos por parte de migración en destino, cada país se reserva su derecho de admisión.</strong></p>
 </section>
 
 </main>
 
-<footer class="footer">
+${
+  showFooter
+    ? `<footer class="footer">
   <div class="footer-grid">
 
     <div class="footer-col">
@@ -466,7 +517,9 @@ ${shouldMoveBaggageToNextPage ? '' : '<div class="page-break"></div>'}
     </div>
 
   </div>
-</footer>
+</footer>`
+    : ''
+}
 
 </body>
 </html>
