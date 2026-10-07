@@ -158,6 +158,39 @@ export default function NewItinerary() {
     })
   }
 
+  /** Reduce el logo para que el PDF no se caiga en Render con varios tramos. */
+  async function compressLogoForPdf(file: File): Promise<string> {
+    const raw = await readFileAsDataUrl(file)
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('Logo invalido'))
+      el.src = raw
+    })
+
+    const maxSide = 480
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height))
+    const width = Math.max(1, Math.round(img.width * scale))
+    const height = Math.max(1, Math.round(img.height * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return raw
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+    ctx.drawImage(img, 0, 0, width, height)
+
+    // JPEG compacto; si queda grande, baja calidad.
+    for (const quality of [0.82, 0.7, 0.55]) {
+      const out = canvas.toDataURL('image/jpeg', quality)
+      if (out.length <= 300_000) return out
+    }
+    return canvas.toDataURL('image/jpeg', 0.45)
+  }
+
   async function onAgencyLogoSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -165,14 +198,15 @@ export default function NewItinerary() {
       setSuccessMessage('El logo debe ser una imagen (PNG, JPG o WEBP)')
       return
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setSuccessMessage('El logo no puede superar 2 MB')
+    if (file.size > 5 * 1024 * 1024) {
+      setSuccessMessage('El logo no puede superar 5 MB')
       return
     }
     try {
-      const dataUrl = await readFileAsDataUrl(file)
+      const dataUrl = await compressLogoForPdf(file)
       setCustomAgencyLogo(dataUrl)
       setCustomAgencyLogoName(file.name)
+      setSuccessMessage('Logo cargado y optimizado para el PDF')
     } catch {
       setSuccessMessage('No se pudo cargar el logo')
     }
@@ -456,7 +490,14 @@ export default function NewItinerary() {
       })
 
       if (!response.ok) {
-        throw new Error('Error generando PDF')
+        let detail = ''
+        try {
+          const errJson = await response.json()
+          detail = errJson?.detail || errJson?.error || ''
+        } catch {
+          // ignore
+        }
+        throw new Error(detail || 'Error generando PDF')
       }
 
       const blob = await response.blob()
@@ -470,8 +511,9 @@ export default function NewItinerary() {
       a.remove()
 
       setSuccessMessage('PDF generado correctamente')
-    } catch {
-      setSuccessMessage('Hubo un error generando el PDF')
+    } catch (err) {
+      const msg = err instanceof Error && err.message ? err.message : 'Hubo un error generando el PDF'
+      setSuccessMessage(msg)
     } finally {
       setIsGenerating(false)
     }
@@ -551,7 +593,8 @@ export default function NewItinerary() {
                 </div>
               ) : (
                 <p className="text-xs text-gray-500 mt-1">
-                  Si no cargas logo, el PDF sale solo con el nombre de la agencia.
+                  Si no cargas logo, el PDF sale solo con el nombre de la agencia. El logo se
+                  comprime automaticamente (mejor PNG/JPG liviano).
                 </p>
               )}
             </div>
